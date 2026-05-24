@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { useEffect } from 'react';
 import {
   TrendingUp, TrendingDown, Wallet, History, LayoutDashboard, ChevronDown,
-  ExternalLink, ShieldCheck, Activity, Clock, CreditCard, Receipt,
+  ExternalLink, Activity, Clock, CreditCard, Receipt,
   PieChart as PieChartIcon, Plus, X, ArrowDownLeft, ArrowUpRight, Briefcase, Calendar, IndianRupee,
   Sun, Moon, Search, Layers, Eye, EyeOff
 } from 'lucide-react';
@@ -325,9 +325,7 @@ export default function App({ data }) {
     <div className="min-h-screen text-slate-900 flex flex-col font-sans selection:bg-indigo-100">
       <nav className="bg-white/55 backdrop-blur-2xl backdrop-saturate-150 border-b border-slate-100 sticky top-0 z-[60] shadow-sm px-8 h-20 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-2xl">
-            <ShieldCheck className="w-6 h-6 text-white" />
-          </div>
+          <BrandLogo />
           <div>
             <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Spent Analyzer</h1>
             <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1.5">Granular Audit Intelligence</p>
@@ -740,6 +738,25 @@ function Chart({ logs }) {
         )}
       </g>
     </svg>
+  );
+}
+
+function BrandLogo() {
+  return (
+    <div className="w-12 h-12 rounded-2xl overflow-hidden ring-1 ring-slate-900/10 shadow-lg shadow-indigo-200/40 dark:ring-indigo-400/25 dark:shadow-indigo-900/40">
+      <svg viewBox="0 0 64 64" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="brandGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#6366F1" />
+            <stop offset="1" stopColor="#0F172A" />
+          </linearGradient>
+        </defs>
+        <rect width="64" height="64" fill="url(#brandGrad)" />
+        <path d="M14 44 L24 30 L34 38 L50 18" stroke="#34D399" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <circle cx="50" cy="18" r="3.5" fill="#34D399" />
+        <text x="32" y="56" textAnchor="middle" fontFamily="ui-sans-serif, system-ui, sans-serif" fontWeight="900" fontSize="14" fill="#F8FAFC">₹</text>
+      </svg>
+    </div>
   );
 }
 
