@@ -1,12 +1,14 @@
+import 'dotenv/config';
 import express from 'express';
 import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '19jRHgrf9cTfPYI5gHi_pYA1j62vTZ4BcdmUXLqYPWxc';
-const KEY_PATH = process.env.SERVICE_ACCOUNT_PATH || path.join(__dirname, 'service-account.json');
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+const KEY_PATH = process.env.SERVICE_ACCOUNT_PATH;
 const PORT = process.env.PORT || 3001;
 const CACHE_MS = 60_000;
 
@@ -51,6 +53,46 @@ async function loadSheet() {
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
+
+/* ------------------------------------------------------------------ */
+/* HTTP Basic Auth                                                     */
+/* Set AUTH_USER and AUTH_PASS env vars to lock the whole app          */
+/* (frontend assets + every /api route) behind a browser login prompt. */
+/* Leave them unset to disable auth (useful for local dev).            */
+/* ------------------------------------------------------------------ */
+const AUTH_USER = process.env.AUTH_USER || '';
+const AUTH_PASS = process.env.AUTH_PASS || '';
+const AUTH_ON   = !!(AUTH_USER && AUTH_PASS);
+
+function timingSafeEqual(a, b) {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function basicAuth(req, res, next) {
+  if (!AUTH_ON) return next();
+  const header = req.headers.authorization || '';
+  const [scheme, encoded] = header.split(' ');
+  if (scheme === 'Basic' && encoded) {
+    let decoded = '';
+    try { decoded = Buffer.from(encoded, 'base64').toString('utf8'); } catch {}
+    const idx = decoded.indexOf(':');
+    if (idx !== -1) {
+      const u = decoded.slice(0, idx);
+      const p = decoded.slice(idx + 1);
+      if (timingSafeEqual(u, AUTH_USER) && timingSafeEqual(p, AUTH_PASS)) {
+        return next();
+      }
+    }
+  }
+  res.set('WWW-Authenticate', 'Basic realm="spentAnalyzer", charset="UTF-8"');
+  return res.status(401).send('Authentication required.');
+}
+app.use(basicAuth);
+
+if (AUTH_ON) console.log('🔒 Basic auth enabled');
 
 app.get('/api/sheet', async (req, res) => {
   try {
