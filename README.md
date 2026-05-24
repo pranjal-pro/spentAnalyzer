@@ -1,8 +1,8 @@
-# spentAnalyzer
+# <img src= "./public/logo.svg" width="25px"> spentAnalyzer  [🔗](https://spentanalyzer.onrender.com)
 
 Personal finance dashboard backed by a Google Sheet. Reads month-summary, granular spends, credits, and investments — surfaces them as KPIs, a multi-series growth chart, capital allocation, category mix, 90-day spend heatmap, and a forensic ledger drawer. Writes new entries straight back into the right table inside the sheet.
 
-![logo](./public/logo.svg)
+
 
 ## Stack
 - **Frontend**: Vite + React + Tailwind + d3 + lucide-react
