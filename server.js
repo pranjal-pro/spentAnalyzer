@@ -195,21 +195,23 @@ async function insertIntoSection({ tab, sectionLabel, width, newRow }) {
       ? startRow + 2 + lastDateOffset            // 0-index header row → 1-index header → +offset
       : startRow + 1;                            // table is empty, write directly below header
 
-    // Shift everything below lastDataRow1 down by one, creating a blank line
-    // that sits BETWEEN the last data row and the footer.
+    // Shift only cells inside this table's column band down by one, so other
+    // tables sharing the sheet are not pushed. Creates a blank line that sits
+    // BETWEEN the last data row and the footer.
     const insertAt0 = lastDataRow1; // 0-indexed row index where the blank gets inserted
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       requestBody: {
         requests: [{
-          insertDimension: {
+          insertRange: {
             range: {
               sheetId,
-              dimension: 'ROWS',
-              startIndex: insertAt0,
-              endIndex: insertAt0 + 1,
+              startRowIndex: insertAt0,
+              endRowIndex: insertAt0 + 1,
+              startColumnIndex: startCol,
+              endColumnIndex: endCol + 1,
             },
-            inheritFromBefore: true, // copy formatting from the data row above
+            shiftDimension: 'ROWS',
           },
         }],
       },
