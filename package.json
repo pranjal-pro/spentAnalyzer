@@ -1,0 +1,28 @@
+{
+  "name": "spentAnalyzer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n SERVER,VITE -c blue,green \"node server.js\" \"vite\"",
+    "server": "node server.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "d3": "^7.9.0",
+    "express": "^4.19.2",
+    "googleapis": "^144.0.0",
+    "lucide-react": "^0.453.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "vite": "^5.4.10"
+  }
+}
