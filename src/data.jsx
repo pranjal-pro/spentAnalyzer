@@ -72,8 +72,6 @@ function scanAllData(data) {
       if (tag.includes('credit'))                                        { section = 'credit'; continue; }
       if (tag.includes('monthly spent'))                                 { section = 'spend';  continue; }
       if (tag.includes('final spent') || tag.includes('expense data'))   { section = 'summary'; continue; }
-      // Any other small banner (e.g. "Goa", "Notes", "Pivot") means the
-      // previous section ended and what follows is unrelated.
       section = null;
       continue;
     }
@@ -216,7 +214,6 @@ export default function App({ data }) {
     }).sort((a, b) => a.year - b.year);
   }, [summaryLogs]);
 
-  /* Generic range scopers — operate against the most recent summary row */
   const scopeSummary = (key) => {
     const latest = summaryLogs[summaryLogs.length - 1];
     if (!latest) return summaryLogs;
@@ -1022,4 +1019,3 @@ function SpendHeatmap({ txs }) {
     </div>
   );
 }
-/* canvas_id:292873827 */
