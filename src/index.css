@@ -57,6 +57,14 @@ html.dark body::after {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 6px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
 
+/* ---- Privacy / Presentation mode: blur every sheet value on screen ---- */
+html.private-mode .tabular-nums,
+html.private-mode svg text,
+html.private-mode [data-private] {
+  filter: blur(7px) saturate(70%) !important;
+  user-select: none;
+}
+
 /* Portfolio Pulse section heading — high-contrast in both modes */
 .portfolio-pulse-heading { color: #1e293b; }
 html.dark .portfolio-pulse-heading { color: #e2e8f0; }

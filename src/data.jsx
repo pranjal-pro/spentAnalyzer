@@ -5,7 +5,7 @@ import {
   TrendingUp, TrendingDown, Wallet, History, LayoutDashboard, ChevronDown,
   ExternalLink, ShieldCheck, Activity, Clock, CreditCard, Receipt,
   PieChart as PieChartIcon, Plus, X, ArrowDownLeft, ArrowUpRight, Briefcase, Calendar, IndianRupee,
-  Sun, Moon, Search, Trash2, Layers
+  Sun, Moon, Search, Layers, Eye, EyeOff
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -168,6 +168,12 @@ export default function App({ data }) {
   };
   useEffect(() => {}, [theme]);
 
+  /* Privacy mode — masks every sheet value on-screen via CSS blur */
+  const [privateMode, setPrivateMode] = useState(false);
+  useEffect(() => {
+    document.documentElement.classList.toggle('private-mode', privateMode);
+  }, [privateMode]);
+
   const { summaryLogs, granularTransactions: parsedTx } = useMemo(() => scanAllData(data), [data]);
   const granularTransactions = useMemo(
     () => [...localTxs, ...parsedTx].sort((a, b) => b.date - a.date),
@@ -180,21 +186,46 @@ export default function App({ data }) {
   const openAdd = () => setAddModal({ open: true, step: 1, type: null });
   const closeAdd = () => setAddModal({ open: false, step: 1, type: null });
   const pickType = (type) => setAddModal({ open: true, step: 2, type });
-  const commitTx = (entry) => {
+  const commitTx = async (entry) => {
     const d = entry.date ? new Date(entry.date) : new Date();
     const amt = parseFloat(entry.amount) || 0;
     if (!amt) return;
-    setLocalTxs(prev => [{
-      id: `local-${Date.now()}`,
-      date: d,
+    const id = `local-${Date.now()}`;
+    const tx = {
+      id, date: d,
       dateStr: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d),
       category: addModal.type === 'invest' ? 'Invested (SIP)' : (entry.category || 'Miscellaneous'),
       reason: entry.reason || '---',
       amount: amt,
       type: addModal.type,
       monthKey: _mKey(d),
-    }, ...prev]);
+      pending: true,
+    };
+    setLocalTxs(prev => [tx, ...prev]);
     closeAdd();
+
+    try {
+      const r = await fetch('/api/sheet/append', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: addModal.type,
+          date: d.toISOString(),
+          category: tx.category,
+          reason: tx.reason,
+          amount: tx.amount,
+        }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({ error: r.statusText }));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      setLocalTxs(prev => prev.map(t => t.id === id ? { ...t, pending: false, synced: true } : t));
+    } catch (err) {
+      console.error('Sheet append failed:', err.message);
+      setLocalTxs(prev => prev.map(t => t.id === id ? { ...t, pending: false, failed: err.message } : t));
+      alert(`Couldn't write to sheet: ${err.message}\n\nMake sure the sheet is shared with the service account email as EDITOR (not Viewer).`);
+    }
   };
 
   const yearlyLogs = useMemo(() => {
@@ -261,7 +292,6 @@ export default function App({ data }) {
     return arr.map(x => ({ ...x, pct: (x.total / grand) * 100 }));
   }, [granularTransactions, summaryLogs, categoryRange]);
 
-  const deleteLocal = (id) => setLocalTxs(prev => prev.filter(t => t.id !== id));
 
   const metrics = useMemo(() => {
     const latest = summaryLogs[summaryLogs.length - 1];
@@ -321,6 +351,15 @@ export default function App({ data }) {
               <Moon className="w-4 h-4" />
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setPrivateMode(v => !v)}
+            aria-pressed={privateMode}
+            title={privateMode ? 'Show data' : 'Hide data (presentation mode)'}
+            className={`p-2.5 rounded-xl border transition-all ${privateMode ? 'bg-amber-500 text-white border-amber-600 shadow-lg' : 'border-slate-200 text-slate-500 hover:text-slate-700'}`}
+          >
+            {privateMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
           <button onClick={openAdd} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-bold text-sm shadow-xl active:scale-95">
             <Plus className="w-4 h-4" /> Add Log
           </button>
@@ -400,7 +439,7 @@ export default function App({ data }) {
                     {categoryMix.slice(0, 6).map(c => (
                       <div key={c.category} className="space-y-1.5">
                         <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                          <span className="text-slate-500">{c.category}</span>
+                          <span className="text-slate-500" data-private>{c.category}</span>
                           <span className="text-slate-800 tabular-nums">{fmt(c.total)}</span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -428,7 +467,7 @@ export default function App({ data }) {
             </div>
 
             <div className="space-y-8 flex flex-col">
-              <RecentTransactions txs={granularTransactions} onDelete={deleteLocal} />
+              <RecentTransactions txs={granularTransactions} />
               <SpendHeatmap txs={granularTransactions} />
             </div>
           </div>
@@ -475,14 +514,14 @@ export default function App({ data }) {
                               <div className={`p-2 rounded-xl transition-all duration-300 ${isOpen ? 'bg-indigo-600 text-white rotate-180' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-100'}`}>
                                 <ChevronDown size={18} />
                               </div>
-                              <span className="font-bold text-slate-800 text-lg">{item.label}</span>
+                              <span className="font-bold text-slate-800 text-lg" data-private>{item.label}</span>
                             </div>
                           </td>
-                          <td className="px-10 py-8 text-slate-400 font-bold text-sm italic">{fmt(item.start)}</td>
-                          <td className="px-10 py-8 text-rose-600 font-black">{fmt(item.expense)}</td>
-                          <td className="px-10 py-8 text-indigo-600 font-black">{fmt(item.invest)}</td>
-                          <td className="px-10 py-8 text-emerald-600 font-black">{fmt(item.credit)}</td>
-                          <td className="px-10 py-8 font-black text-slate-900 text-lg">{fmt(item.balance)}</td>
+                          <td className="px-10 py-8 text-slate-400 font-bold text-sm italic tabular-nums" data-private>{fmt(item.start)}</td>
+                          <td className="px-10 py-8 text-rose-600 font-black tabular-nums" data-private>{fmt(item.expense)}</td>
+                          <td className="px-10 py-8 text-indigo-600 font-black tabular-nums" data-private>{fmt(item.invest)}</td>
+                          <td className="px-10 py-8 text-emerald-600 font-black tabular-nums" data-private>{fmt(item.credit)}</td>
+                          <td className="px-10 py-8 font-black text-slate-900 text-lg tabular-nums" data-private>{fmt(item.balance)}</td>
                           <td className="px-10 py-8 text-right">
                             <button className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-indigo-600 transition-all">
                               <ExternalLink size={18}/>
@@ -537,39 +576,30 @@ export default function App({ data }) {
                                             <th className="px-6 py-4">Category</th>
                                             <th className="px-6 py-4">Reason</th>
                                             <th className="px-6 py-4 text-right">Amount</th>
-                                            <th className="px-2 py-4"></th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
                                           {filtered.map(tx => (
                                             <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
-                                              <td className="px-6 py-4 text-[10px] font-bold text-slate-400 tabular-nums whitespace-nowrap">{tx.dateStr}</td>
+                                              <td className="px-6 py-4 text-[10px] font-bold text-slate-400 tabular-nums whitespace-nowrap" data-private>{tx.dateStr}</td>
                                               <td className="px-6 py-4">
                                                 <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter ${
                                                   tx.type === 'invest' ? 'bg-indigo-50 text-indigo-600' :
                                                   tx.type === 'credit' ? 'bg-emerald-50 text-emerald-600' :
                                                                           'bg-slate-100 text-slate-500'
-                                                }`}>{tx.category}</span>
+                                                }`} data-private>{tx.category}</span>
                                               </td>
-                                              <td className="px-6 py-4 text-xs font-bold text-slate-700">{tx.reason}</td>
+                                              <td className="px-6 py-4 text-xs font-bold text-slate-700" data-private>{tx.reason}</td>
                                               <td className={`px-6 py-4 text-right text-xs font-black tabular-nums ${
                                                 tx.type === 'credit' ? 'text-emerald-600' :
                                                 tx.type === 'invest' ? 'text-indigo-600'  : 'text-rose-500'
-                                              }`}>
+                                              }`} data-private>
                                                 {tx.type === 'credit' || tx.type === 'invest' ? '+' : '-'}{fmt(tx.amount)}
-                                              </td>
-                                              <td className="px-2 py-4 text-right">
-                                                {tx.id.startsWith('local-') && (
-                                                  <button onClick={() => deleteLocal(tx.id)} aria-label="Delete local entry"
-                                                          className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors">
-                                                    <Trash2 size={14}/>
-                                                  </button>
-                                                )}
                                               </td>
                                             </tr>
                                           ))}
                                           {filtered.length === 0 && (
-                                            <tr><td colSpan={5} className="px-6 py-24 text-center text-xs font-bold text-slate-300 italic">
+                                            <tr><td colSpan={4} className="px-6 py-24 text-center text-xs font-bold text-slate-300 italic">
                                               {drawerQuery ? `No matches for "${drawerQuery}"` : 'No granular records for this period.'}
                                             </td></tr>
                                           )}
@@ -875,7 +905,7 @@ function Field({ label, icon, children }) {
 /* Recent Transactions + Spend Heatmap                                 */
 /* ------------------------------------------------------------------ */
 
-function RecentTransactions({ txs, onDelete }) {
+function RecentTransactions({ txs }) {
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
   const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
@@ -920,20 +950,14 @@ function RecentTransactions({ txs, onDelete }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-xs font-bold text-slate-700 truncate">{t.reason}</p>
-                  <p className={`text-[11px] font-black whitespace-nowrap ${m.tone}`}>{m.sign}{fmt(t.amount)}</p>
+                  <p className="text-xs font-bold text-slate-700 truncate" data-private>{t.reason}</p>
+                  <p className={`text-[11px] font-black whitespace-nowrap tabular-nums ${m.tone}`} data-private>{m.sign}{fmt(t.amount)}</p>
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{t.category}</span>
-                  <span className="text-[9px] font-bold text-slate-400">{t.dateStr}</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate" data-private>{t.category}</span>
+                  <span className="text-[9px] font-bold text-slate-400" data-private>{t.dateStr}</span>
                 </div>
               </div>
-              {t.id.startsWith('local-') && onDelete && (
-                <button onClick={() => onDelete(t.id)} aria-label="Delete entry"
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors">
-                  <Trash2 size={14}/>
-                </button>
-              )}
             </div>
           );
         })}
